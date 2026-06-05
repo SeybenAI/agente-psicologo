@@ -166,6 +166,11 @@ function SessionRunner({ hasConsent }: { hasConsent: boolean }) {
             al micrófono. Tómate el tiempo que necesites: la sesión no tiene
             límite.
           </p>
+          <p className="mt-3 rounded-xl bg-indigo-50 px-3 py-2.5 text-sm text-indigo-900">
+            🔒 Esta sesión se graba solo para que tu psicólogo/a pueda
+            entenderte y acompañarte mejor. Habla con tranquilidad: estás en un
+            espacio seguro.
+          </p>
           {error && (
             <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
@@ -246,18 +251,22 @@ function ConsentCard({
           profesional sanitario ni sustituye a tu psicólogo.
         </li>
         <li>
-          • La conversación se <strong>graba y transcribe</strong>, y se genera
-          un resumen.
+          • Esta sesión se <strong>graba únicamente</strong> para que tu
+          psicólogo/a pueda conocerte y ayudarte mejor.
         </li>
         <li>
-          • Tu <strong>psicólogo asignado</strong> podrá revisar ese resumen para
-          darte seguimiento.
+          • Solo <strong>tu psicólogo asignado</strong> tendrá acceso. Es
+          confidencial.
         </li>
         <li>
           • Si detectamos una situación de riesgo, te mostraremos recursos de
           ayuda y se avisará a tu profesional.
         </li>
       </ul>
+      <p className="mt-4 rounded-xl bg-indigo-50 px-3 py-2.5 text-sm text-indigo-900">
+        Puedes hablar con total tranquilidad y libertad: este es un espacio
+        seguro y solo para ti. 💜
+      </p>
       {error && (
         <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}

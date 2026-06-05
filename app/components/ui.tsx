@@ -2,6 +2,16 @@ import type { ReactNode } from "react";
 import { RISK_META } from "@/lib/constants";
 import type { Enums } from "@/lib/database.types";
 
+export type Tone =
+  | "default"
+  | "amber"
+  | "indigo"
+  | "violet"
+  | "sky"
+  | "red"
+  | "emerald"
+  | "rose";
+
 export function StatCard({
   label,
   value,
@@ -11,18 +21,31 @@ export function StatCard({
   label: string;
   value: ReactNode;
   hint?: string;
-  tone?: "default" | "amber" | "indigo" | "red" | "emerald";
+  tone?: Tone;
 }) {
-  const tones: Record<string, string> = {
+  const box: Record<Tone, string> = {
     default: "border-slate-200 bg-white",
     amber: "border-amber-200 bg-amber-50",
     indigo: "border-indigo-200 bg-indigo-50",
+    violet: "border-violet-200 bg-violet-50",
+    sky: "border-sky-200 bg-sky-50",
     red: "border-red-200 bg-red-50",
     emerald: "border-emerald-200 bg-emerald-50",
+    rose: "border-rose-200 bg-rose-50",
+  };
+  const valueColor: Record<Tone, string> = {
+    default: "text-slate-900",
+    amber: "text-amber-700",
+    indigo: "text-indigo-700",
+    violet: "text-violet-700",
+    sky: "text-sky-700",
+    red: "text-red-700",
+    emerald: "text-emerald-700",
+    rose: "text-rose-700",
   };
   return (
-    <div className={`rounded-xl border p-4 ${tones[tone]}`}>
-      <p className="text-2xl font-semibold tracking-tight text-slate-900">
+    <div className={`rounded-xl border p-4 ${box[tone]}`}>
+      <p className={`text-2xl font-semibold tracking-tight ${valueColor[tone]}`}>
         {value}
       </p>
       <p className="mt-1 text-xs font-medium text-slate-500">{label}</p>
@@ -49,7 +72,8 @@ export function Card({
       {(title || action) && (
         <div className="mb-4 flex items-center justify-between">
           {title && (
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+              <span className="h-4 w-1 rounded-full bg-linear-to-b from-indigo-500 to-violet-500" />
               {title}
             </h2>
           )}

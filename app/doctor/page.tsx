@@ -110,8 +110,8 @@ export default async function DoctorPanel() {
     .slice(0, 6);
 
   return (
-    <div className="flex flex-1 flex-col bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+    <div className="flex flex-1 flex-col bg-linear-to-b from-indigo-50/60 via-slate-50 to-slate-50">
+      <header className="border-b border-indigo-100 bg-white/80 backdrop-blur">
         <div className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8 xl:px-12">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">
@@ -140,7 +140,7 @@ export default async function DoctorPanel() {
           <StatCard
             label="Por revisar"
             value={toReview}
-            tone={toReview ? "indigo" : "default"}
+            tone={toReview ? "amber" : "default"}
           />
           <StatCard
             label="Alertas activas"

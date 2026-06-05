@@ -37,6 +37,8 @@ export async function createPatient(
   const fullName = String(formData.get("full_name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  const motivo = String(formData.get("motivo_derivacion") ?? "").trim().slice(0, 500);
+  const notas = String(formData.get("notas_clinicas") ?? "").trim().slice(0, 4000);
 
   if (!fullName || !email || password.length < 6) {
     return {
@@ -45,19 +47,29 @@ export async function createPatient(
   }
 
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.createUser({
+  const { data, error } = await admin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
     user_metadata: { full_name: fullName, role: "patient", doctor_id: doctorId },
   });
 
-  if (error) {
-    if (error.message.toLowerCase().includes("already")) {
+  if (error || !data.user) {
+    if (error?.message.toLowerCase().includes("already")) {
       return { error: "Ya existe una cuenta con ese correo." };
     }
     return { error: "No se pudo crear el paciente." };
   }
+
+  // Guardamos el motivo de derivación y las notas iniciales (el trigger ya
+  // creó la fila patient_records; aquí la completamos).
+  await admin
+    .from("patient_records")
+    .update({
+      motivo_derivacion: motivo || null,
+      notas_clinicas: notas || null,
+    })
+    .eq("patient_id", data.user.id);
 
   revalidatePath("/doctor");
   return { ok: true };
@@ -163,8 +175,21 @@ export async function reviewSummary(formData: FormData) {
  *  - "discharge": da de alta al paciente (proceso terminado).
  * Hasta que el doctor no haga esto, el paciente no puede iniciar otra sesión.
  */
-export async function evaluateSession(formData: FormData) {
-  const { supabase, doctorId } = await requireDoctor();
+export type EvaluationState =
+  | { ok: true; decision: "authorize" | "discharge" }
+  | { error: string }
+  | null;
+
+export async function evaluateSession(
+  _prev: EvaluationState,
+  formData: FormData
+): Promise<EvaluationState> {
+  let supabase, doctorId: string;
+  try {
+    ({ supabase, doctorId } = await requireDoctor());
+  } catch {
+    return { error: "No autorizado." };
+  }
   const sessionId = String(formData.get("session_id") ?? "");
   const patientId = String(formData.get("patient_id") ?? "");
   const decision = String(formData.get("decision") ?? "");
@@ -173,7 +198,7 @@ export async function evaluateSession(formData: FormData) {
     formData.get("mensaje_paciente") ?? ""
   ).slice(0, 600);
   const instrucciones = String(formData.get("instrucciones") ?? "").slice(0, 600);
-  if (!sessionId || !patientId) return;
+  if (!sessionId || !patientId) return { error: "Datos incompletos." };
 
   // 1) Guardar la revisión del resumen (notas clínicas internas).
   await supabase
@@ -220,6 +245,8 @@ export async function evaluateSession(formData: FormData) {
   revalidatePath(`/doctor/sesion/${sessionId}`);
   revalidatePath(`/doctor/paciente/${patientId}`);
   revalidatePath("/doctor");
+
+  return { ok: true, decision: decision === "discharge" ? "discharge" : "authorize" };
 }
 
 /** Marca una alerta de crisis como resuelta. */

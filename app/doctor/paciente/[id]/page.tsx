@@ -6,12 +6,7 @@ import { Card, StatCard, RiskBadge, RiskEvolution } from "@/app/components/ui";
 import { SESSION_STATUS_META, RISK_META } from "@/lib/constants";
 import type { Enums } from "@/lib/database.types";
 import { fmtDateTime, fmtDuration, fmtRelative, fmtDay } from "@/lib/format";
-import {
-  saveInstructions,
-  saveClinicalRecord,
-  togglePatientActive,
-  resolveCrisis,
-} from "../../actions";
+import { togglePatientActive, resolveCrisis } from "../../actions";
 
 export default async function PacienteDetalle({
   params,
@@ -90,8 +85,8 @@ export default async function PacienteDetalle({
     .filter(Boolean) as { label: string; level: Enums<"risk_level"> }[];
 
   return (
-    <div className="flex flex-1 flex-col bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+    <div className="flex flex-1 flex-col bg-linear-to-b from-indigo-50/60 via-slate-50 to-slate-50">
+      <header className="border-b border-indigo-100 bg-white/80 backdrop-blur">
         <div className="flex w-full items-center justify-between px-4 py-4 sm:px-6 lg:px-8 xl:px-12">
           <Link
             href="/doctor"
@@ -324,67 +319,29 @@ export default async function PacienteDetalle({
 
           {/* Columna lateral */}
           <div className="space-y-6">
-            {/* Instrucciones próxima sesión */}
-            <Card
-              title="Instrucciones próxima sesión"
-              className="border-indigo-200 bg-indigo-50/40"
-            >
-              <p className="-mt-2 mb-3 text-xs text-indigo-700/80">
-                El agente las seguirá en la siguiente terapia.
-              </p>
-              <form action={saveInstructions}>
-                <input type="hidden" name="patient_id" value={patient.id} />
-                <textarea
-                  name="instrucciones"
-                  rows={3}
-                  maxLength={600}
-                  defaultValue={record?.instrucciones_proxima_sesion ?? ""}
-                  placeholder="Ej.: hoy anímala a quedar con una amiga…"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                />
-                <div className="mt-2 flex justify-end">
-                  <button className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-                    Guardar
-                  </button>
-                </div>
-              </form>
-            </Card>
-
-            {/* Historia clínica */}
+            {/* Historia clínica (solo lectura: se fija al crear el paciente) */}
             <Card title="Historia clínica">
-              <form action={saveClinicalRecord} className="space-y-3">
-                <input type="hidden" name="patient_id" value={patient.id} />
+              <p className="-mt-2 mb-3 text-xs text-slate-400">
+                Definida al dar de alta al paciente.
+              </p>
+              <div className="space-y-3 text-sm">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">
+                  <p className="text-xs font-medium text-slate-500">
                     Motivo de derivación
-                  </label>
-                  <input
-                    name="motivo_derivacion"
-                    maxLength={500}
-                    defaultValue={record?.motivo_derivacion ?? ""}
-                    placeholder="Ej.: soledad y aislamiento social"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                  />
+                  </p>
+                  <p className="mt-0.5 text-slate-800">
+                    {record?.motivo_derivacion || "No especificado."}
+                  </p>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">
-                    Notas clínicas
-                  </label>
-                  <textarea
-                    name="notas_clinicas"
-                    rows={6}
-                    maxLength={4000}
-                    defaultValue={record?.notas_clinicas ?? ""}
-                    placeholder="Observaciones, plan terapéutico, antecedentes…"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                  />
+                  <p className="text-xs font-medium text-slate-500">
+                    Notas de derivación
+                  </p>
+                  <p className="mt-0.5 whitespace-pre-line text-slate-800">
+                    {record?.notas_clinicas || "Sin notas."}
+                  </p>
                 </div>
-                <div className="flex justify-end">
-                  <button className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
-                    Guardar historia
-                  </button>
-                </div>
-              </form>
+              </div>
             </Card>
 
             {/* Datos */}

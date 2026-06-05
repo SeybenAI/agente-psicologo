@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import { getSessionProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { RISK_META } from "@/lib/constants";
-import type { TranscriptTurn } from "@/lib/elevenlabs";
 import { fmtLong, fmtDuration } from "@/lib/format";
 import { PrintButton } from "./print-button";
 
@@ -25,28 +24,21 @@ export default async function InformeSesion({
     .maybeSingle();
   if (!session) notFound();
 
-  const [{ data: patient }, { data: summary }, { data: transcriptRow }] =
-    await Promise.all([
-      supabase
-        .from("profiles")
-        .select("full_name, email")
-        .eq("id", session.patient_id)
-        .maybeSingle(),
-      supabase
-        .from("session_summaries")
-        .select(
-          "summary, risk_level, topics, doctor_notes, doctor_approved, doctor_reviewed"
-        )
-        .eq("session_id", id)
-        .maybeSingle(),
-      supabase
-        .from("session_transcripts")
-        .select("transcript")
-        .eq("session_id", id)
-        .maybeSingle(),
-    ]);
+  const [{ data: patient }, { data: summary }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", session.patient_id)
+      .maybeSingle(),
+    supabase
+      .from("session_summaries")
+      .select(
+        "summary, risk_level, topics, doctor_notes, doctor_approved, doctor_reviewed"
+      )
+      .eq("session_id", id)
+      .maybeSingle(),
+  ]);
 
-  const turns = (transcriptRow?.transcript ?? []) as unknown as TranscriptTurn[];
   const topics = Array.isArray(summary?.topics)
     ? (summary.topics as string[])
     : [];
@@ -130,24 +122,6 @@ export default async function InformeSesion({
             </p>
           </Block>
         )}
-
-        {/* Transcripción */}
-        <Block title="Transcripción">
-          {turns.length === 0 ? (
-            <p className="text-sm text-slate-500">No disponible.</p>
-          ) : (
-            <div className="space-y-2 text-sm leading-6">
-              {turns.map((t, i) => (
-                <p key={i}>
-                  <span className="font-semibold">
-                    {t.role === "user" ? "Paciente: " : "Acompañante: "}
-                  </span>
-                  {t.message}
-                </p>
-              ))}
-            </div>
-          )}
-        </Block>
 
         <footer className="mt-10 border-t border-slate-200 pt-4 text-[11px] leading-5 text-slate-400">
           Documento confidencial de carácter clínico. El resumen y la

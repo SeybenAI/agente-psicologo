@@ -6,7 +6,8 @@ import { Card, RiskBadge, Pill } from "@/app/components/ui";
 import { SESSION_STATUS_META } from "@/lib/constants";
 import type { TranscriptTurn } from "@/lib/elevenlabs";
 import { fmtLong, fmtDuration } from "@/lib/format";
-import { evaluateSession } from "../../actions";
+import { EvaluationForm } from "./evaluation-form";
+import { SessionFlow } from "./session-flow";
 
 export default async function SesionDetalle({
   params,
@@ -29,8 +30,13 @@ export default async function SesionDetalle({
     .maybeSingle();
   if (!session) notFound();
 
-  const [{ data: patient }, { data: summary }, { data: transcriptRow }, { data: record }] =
-    await Promise.all([
+  const [
+    { data: patient },
+    { data: summary },
+    { data: transcriptRow },
+    { data: record },
+    { data: latestSession },
+  ] = await Promise.all([
       supabase
         .from("profiles")
         .select("full_name")
@@ -53,7 +59,17 @@ export default async function SesionDetalle({
         .select("instrucciones_proxima_sesion, alta, puede_iniciar_sesion")
         .eq("patient_id", session.patient_id)
         .maybeSingle(),
+      supabase
+        .from("therapy_sessions")
+        .select("id")
+        .eq("patient_id", session.patient_id)
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
+
+  // La evaluación (decisión + directrices) solo en la ÚLTIMA sesión.
+  const isLatest = latestSession?.id === session.id;
 
   const turns = (transcriptRow?.transcript ?? []) as unknown as TranscriptTurn[];
   const topics = Array.isArray(summary?.topics)
@@ -63,8 +79,8 @@ export default async function SesionDetalle({
   const hasAudio = Boolean(session.elevenlabs_conversation_id);
 
   return (
-    <div className="flex flex-1 flex-col bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+    <div className="flex flex-1 flex-col bg-linear-to-b from-indigo-50/60 via-slate-50 to-slate-50">
+      <header className="border-b border-indigo-100 bg-white/80 backdrop-blur">
         <div className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8 xl:px-12">
           <Link
             href={`/doctor/paciente/${session.patient_id}`}
@@ -105,177 +121,166 @@ export default async function SesionDetalle({
 
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Columna principal */}
-          <div className="space-y-6 lg:col-span-2">
-            <Card title="Resumen de la sesión">
-              <p className="whitespace-pre-line text-sm leading-6 text-slate-700">
-                {summary?.summary ??
-                  "El resumen se está generando o aún no está disponible."}
-              </p>
-              {topics.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {topics.map((t) => (
-                    <Pill key={t}>{t}</Pill>
-                  ))}
-                </div>
-              )}
-            </Card>
+          <div className="lg:col-span-2">
+            <SessionFlow
+              evaluateLabel={
+                summary?.doctor_reviewed ? "Ver evaluación" : "Evaluar sesión"
+              }
+              review={
+                <>
+                  {/* Resumen */}
+                  <Card title="Resumen de la sesión">
+                    <p className="whitespace-pre-line text-sm leading-6 text-slate-700">
+                      {summary?.summary ??
+                        "El resumen se está generando o aún no está disponible."}
+                    </p>
+                    {topics.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {topics.map((t) => (
+                          <Pill key={t}>{t}</Pill>
+                        ))}
+                      </div>
+                    )}
+                  </Card>
 
-            <Card
-              title="Evaluación y siguiente paso"
-              className="border-indigo-200 bg-indigo-50/40"
-            >
-              {/* Estado del flujo */}
-              <div className="-mt-2 mb-4">
-                {record?.alta ? (
-                  <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                    ✓ Paciente dado de alta
-                  </span>
-                ) : record?.puede_iniciar_sesion ? (
-                  <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                    Próxima sesión autorizada
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
-                    ⏳ Pendiente de tu autorización
-                  </span>
-                )}
-              </div>
+                  {/* Audio, justo debajo del resumen */}
+                  {hasAudio && (
+                    <details className="group rounded-2xl border border-slate-200 bg-white">
+                      <summary className="flex cursor-pointer list-none items-center justify-between p-5 text-sm font-semibold uppercase tracking-wide text-slate-500">
+                        <span>🔊 Escuchar audio</span>
+                        <span className="text-slate-400 transition-transform group-open:rotate-180">
+                          ▾
+                        </span>
+                      </summary>
+                      <div className="px-5 pb-5">
+                        <audio
+                          controls
+                          preload="none"
+                          src={`/api/elevenlabs/audio/${id}`}
+                          className="w-full"
+                        />
+                      </div>
+                    </details>
+                  )}
 
-              <form action={evaluateSession} className="space-y-4">
-                <input type="hidden" name="session_id" value={id} />
-                <input
-                  type="hidden"
-                  name="patient_id"
-                  value={session.patient_id}
-                />
-
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">
-                    Notas clínicas de esta sesión
-                    <span className="ml-1 font-normal text-slate-400">
-                      (internas, el paciente NO las ve)
-                    </span>
-                  </label>
-                  <textarea
-                    name="doctor_notes"
-                    rows={3}
-                    maxLength={1000}
-                    defaultValue={summary?.doctor_notes ?? ""}
-                    placeholder="Tu valoración clínica de la sesión…"
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-emerald-700">
-                    Mensaje para el paciente
-                    <span className="ml-1 font-normal text-slate-400">
-                      (opcional, esto SÍ lo verá)
-                    </span>
-                  </label>
-                  <textarea
-                    name="mensaje_paciente"
-                    rows={2}
-                    maxLength={600}
-                    defaultValue={session.mensaje_paciente ?? ""}
-                    placeholder="Ej.: ¡Buen trabajo hoy, Marta! Esta semana intenta dar ese paseo del que hablamos."
-                    className="w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">
-                    Directrices para el agente en la próxima sesión
-                  </label>
-                  <textarea
-                    name="instrucciones"
-                    rows={3}
-                    maxLength={600}
-                    defaultValue={record?.instrucciones_proxima_sesion ?? ""}
-                    placeholder="Ej.: trabaja la rutina de salir a caminar y reforzar el contacto con su hermana…"
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-2 border-t border-indigo-100 pt-3 sm:flex-row sm:items-center sm:justify-end">
-                  <button
-                    type="submit"
-                    name="decision"
-                    value="discharge"
-                    className="rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+                  {/* Transcripción */}
+                  <details className="group rounded-2xl border border-slate-200 bg-white">
+                    <summary className="flex cursor-pointer list-none items-center justify-between p-5 text-sm font-semibold uppercase tracking-wide text-slate-500">
+                      <span>📝 Ver transcripción</span>
+                      <span className="text-slate-400 transition-transform group-open:rotate-180">
+                        ▾
+                      </span>
+                    </summary>
+                    <div className="px-5 pb-5">
+                      {turns.length === 0 ? (
+                        <p className="text-sm text-slate-500">
+                          No hay transcripción disponible.
+                        </p>
+                      ) : (
+                        <ul className="space-y-3">
+                          {turns.map((t, i) => (
+                            <li
+                              key={i}
+                              className={`flex ${t.role === "user" ? "justify-end" : "justify-start"}`}
+                            >
+                              <div
+                                className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
+                                  t.role === "user"
+                                    ? "bg-indigo-600 text-white"
+                                    : "border border-slate-200 bg-slate-50 text-slate-700"
+                                }`}
+                              >
+                                <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide opacity-70">
+                                  {t.role === "user" ? "Paciente" : "Acompañante"}
+                                </span>
+                                {t.message}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </details>
+                </>
+              }
+              evaluation={
+                isLatest && !summary?.doctor_reviewed ? (
+                  <Card
+                    title="Evaluación y siguiente paso"
+                    className="border-indigo-200 bg-indigo-50/40"
                   >
-                    Dar de alta (ya está bien)
-                  </button>
-                  <button
-                    type="submit"
-                    name="decision"
-                    value="authorize"
-                    className="rounded-full bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-                  >
-                    Guardar y autorizar próxima sesión
-                  </button>
-                </div>
-              </form>
-            </Card>
-
-            {/* Audio (plegado) */}
-            {hasAudio && (
-              <details className="group rounded-2xl border border-slate-200 bg-white">
-                <summary className="flex cursor-pointer list-none items-center justify-between p-5 text-sm font-semibold uppercase tracking-wide text-slate-500">
-                  <span>🔊 Escuchar audio</span>
-                  <span className="text-slate-400 transition-transform group-open:rotate-180">
-                    ▾
-                  </span>
-                </summary>
-                <div className="px-5 pb-5">
-                  <audio
-                    controls
-                    preload="none"
-                    src={`/api/elevenlabs/audio/${id}`}
-                    className="w-full"
-                  />
-                </div>
-              </details>
-            )}
-
-            {/* Transcripción (plegada) */}
-            <details className="group rounded-2xl border border-slate-200 bg-white">
-              <summary className="flex cursor-pointer list-none items-center justify-between p-5 text-sm font-semibold uppercase tracking-wide text-slate-500">
-                <span>📝 Ver transcripción</span>
-                <span className="text-slate-400 transition-transform group-open:rotate-180">
-                  ▾
-                </span>
-              </summary>
-              <div className="px-5 pb-5">
-                {turns.length === 0 ? (
-                  <p className="text-sm text-slate-500">
-                    No hay transcripción disponible.
-                  </p>
+                    <div className="-mt-2 mb-4">
+                      <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                        ⏳ Pendiente de tu autorización
+                      </span>
+                    </div>
+                    <EvaluationForm
+                      sessionId={id}
+                      patientId={session.patient_id}
+                      patientName={patient?.full_name ?? "El paciente"}
+                      defaultNotes={summary?.doctor_notes ?? ""}
+                      defaultMensaje={session.mensaje_paciente ?? ""}
+                      defaultInstrucciones={
+                        record?.instrucciones_proxima_sesion ?? ""
+                      }
+                    />
+                  </Card>
                 ) : (
-                  <ul className="space-y-3">
-                    {turns.map((t, i) => (
-                      <li
-                        key={i}
-                        className={`flex ${t.role === "user" ? "justify-end" : "justify-start"}`}
-                      >
-                        <div
-                          className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
-                            t.role === "user"
-                              ? "bg-indigo-600 text-white"
-                              : "border border-slate-200 bg-slate-50 text-slate-700"
-                          }`}
-                        >
-                          <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide opacity-70">
-                            {t.role === "user" ? "Paciente" : "Acompañante"}
+                  <Card title="Evaluación de la sesión">
+                    {isLatest && (
+                      <div className="-mt-2 mb-4">
+                        {record?.alta ? (
+                          <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                            ✓ Paciente dado de alta
                           </span>
-                          {t.message}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </details>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                            ✓ Próxima sesión autorizada
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {summary?.doctor_notes ? (
+                      <div className="mb-3">
+                        <p className="text-xs font-medium text-slate-500">
+                          Notas clínicas (internas)
+                        </p>
+                        <p className="mt-0.5 whitespace-pre-line text-sm text-slate-700">
+                          {summary.doctor_notes}
+                        </p>
+                      </div>
+                    ) : null}
+                    {session.mensaje_paciente ? (
+                      <div className="mb-3">
+                        <p className="text-xs font-medium text-emerald-700">
+                          Mensaje enviado al paciente
+                        </p>
+                        <p className="mt-0.5 whitespace-pre-line text-sm text-slate-700">
+                          {session.mensaje_paciente}
+                        </p>
+                      </div>
+                    ) : null}
+                    {isLatest && record?.instrucciones_proxima_sesion ? (
+                      <div>
+                        <p className="text-xs font-medium text-slate-500">
+                          Directrices para la próxima sesión
+                        </p>
+                        <p className="mt-0.5 whitespace-pre-line text-sm text-slate-700">
+                          {record.instrucciones_proxima_sesion}
+                        </p>
+                      </div>
+                    ) : null}
+                    {!summary?.doctor_reviewed &&
+                      !summary?.doctor_notes &&
+                      !session.mensaje_paciente && (
+                        <p className="text-sm text-slate-500">
+                          Esta sesión todavía no tiene evaluación registrada.
+                        </p>
+                      )}
+                  </Card>
+                )
+              }
+            />
           </div>
 
           {/* Columna lateral */}
