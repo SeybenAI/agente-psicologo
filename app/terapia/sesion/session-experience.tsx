@@ -34,6 +34,43 @@ function SessionRunner({ hasConsent }: { hasConsent: boolean }) {
   const conversationIdRef = useRef<string | null>(null);
   const startedAtRef = useRef<number | null>(null);
   const finalizedRef = useRef(false);
+  const keepAliveRef = useRef<{ ctx: AudioContext; osc: OscillatorNode } | null>(
+    null
+  );
+
+  // Mantiene la pestaña "activa" reproduciendo un sonido inaudible, para que
+  // el navegador no la congele (freeze) al cambiar de ventana y corte la sesión.
+  function startKeepAlive() {
+    if (keepAliveRef.current) return;
+    try {
+      const AC =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
+      const ctx = new AC();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      gain.gain.value = 0.0001; // prácticamente silencio
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      keepAliveRef.current = { ctx, osc };
+    } catch {
+      /* sin AudioContext: no pasa nada */
+    }
+  }
+
+  function stopKeepAlive() {
+    try {
+      keepAliveRef.current?.osc.stop();
+      void keepAliveRef.current?.ctx.close();
+    } catch {
+      /* ya cerrado */
+    }
+    keepAliveRef.current = null;
+  }
+
+  // Limpieza al desmontar.
+  useEffect(() => () => stopKeepAlive(), []);
 
   // Captura el conversation_id en cuanto hay conexión.
   useEffect(() => {
@@ -50,6 +87,7 @@ function SessionRunner({ hasConsent }: { hasConsent: boolean }) {
   const finalize = useCallback(async () => {
     if (finalizedRef.current) return;
     finalizedRef.current = true;
+    stopKeepAlive();
 
     const durationSeconds = startedAtRef.current
       ? (Date.now() - startedAtRef.current) / 1000
@@ -116,6 +154,7 @@ function SessionRunner({ hasConsent }: { hasConsent: boolean }) {
       startedAtRef.current = Date.now();
       setElapsed(0);
       setPhase("active");
+      startKeepAlive();
       startSession({
         conversationToken,
         connectionType: "webrtc",
