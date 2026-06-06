@@ -128,14 +128,15 @@ export function RiskEvolution({
     return <p className="text-sm text-slate-500">Sin datos suficientes todavía.</p>;
   }
 
-  const W = 680;
-  const H = 200;
-  const padL = 56;
-  const padR = 20;
-  const padT = 16;
-  const padB = 34;
+  const W = 720;
+  const H = 240;
+  const padL = 60;
+  const padR = 24;
+  const padT = 24;
+  const padB = 42;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
+  const baseY = padT + plotH;
 
   const rowY = (lvl: Enums<"risk_level">) =>
     padT + RISK_ROWS.indexOf(lvl) * (plotH / (RISK_ROWS.length - 1));
@@ -149,7 +150,14 @@ export function RiskEvolution({
     y: rowY(p.level),
     ...p,
   }));
-  const linePath = coords.map((c) => `${c.x},${c.y}`).join(" ");
+
+  const line = coords
+    .map((c, i) => `${i === 0 ? "M" : "L"} ${c.x},${c.y}`)
+    .join(" ");
+  const area =
+    coords.length > 1
+      ? `${line} L ${coords[coords.length - 1].x},${baseY} L ${coords[0].x},${baseY} Z`
+      : "";
 
   return (
     <svg
@@ -158,7 +166,27 @@ export function RiskEvolution({
       role="img"
       aria-label="Evolución del riesgo por sesión"
     >
-      {/* Gridlines + etiquetas de nivel */}
+      <defs>
+        <linearGradient id="riskLineGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#6366f1" />
+          <stop offset="100%" stopColor="#8b5cf6" />
+        </linearGradient>
+        <linearGradient id="riskAreaGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#6366f1" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+        </linearGradient>
+        <filter id="riskGlow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow
+            dx="0"
+            dy="2"
+            stdDeviation="3"
+            floodColor="#6366f1"
+            floodOpacity="0.25"
+          />
+        </filter>
+      </defs>
+
+      {/* Rejilla + etiquetas de nivel */}
       {RISK_ROWS.map((lvl) => {
         const y = rowY(lvl);
         return (
@@ -168,15 +196,18 @@ export function RiskEvolution({
               y1={y}
               x2={W - padR}
               y2={y}
-              stroke="#e2e8f0"
+              stroke="#eef2f7"
               strokeWidth={1}
+              strokeDasharray="2 5"
             />
+            <circle cx={padL - 16} cy={y} r={3.5} fill={RISK_DOT[lvl]} />
             <text
-              x={padL - 10}
+              x={padL - 24}
               y={y + 4}
               textAnchor="end"
               fontSize={11}
-              fill="#94a3b8"
+              fontWeight={500}
+              fill="#64748b"
             >
               {RISK_ROW_LABEL[lvl]}
             </text>
@@ -184,25 +215,39 @@ export function RiskEvolution({
         );
       })}
 
-      {/* Línea de evolución */}
+      {/* Área + línea */}
       {coords.length > 1 && (
-        <polyline
-          points={linePath}
-          fill="none"
-          stroke="#6366f1"
-          strokeWidth={2}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
+        <>
+          <path d={area} fill="url(#riskAreaGrad)" />
+          <path
+            d={line}
+            fill="none"
+            stroke="url(#riskLineGrad)"
+            strokeWidth={3}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            filter="url(#riskGlow)"
+          />
+        </>
       )}
 
-      {/* Puntos + fechas */}
+      {/* Puntos con halo + fechas */}
       {coords.map((c, i) => (
         <g key={i}>
-          <circle cx={c.x} cy={c.y} r={6} fill={RISK_DOT[c.level]} stroke="#fff" strokeWidth={2} />
+          <circle cx={c.x} cy={c.y} r={9} fill={RISK_DOT[c.level]} opacity={0.18} />
+          <circle
+            cx={c.x}
+            cy={c.y}
+            r={5}
+            fill={RISK_DOT[c.level]}
+            stroke="#fff"
+            strokeWidth={2.5}
+          >
+            <title>{`${c.label} · ${RISK_ROW_LABEL[c.level]}`}</title>
+          </circle>
           <text
             x={c.x}
-            y={H - 12}
+            y={H - 14}
             textAnchor="middle"
             fontSize={11}
             fill="#94a3b8"

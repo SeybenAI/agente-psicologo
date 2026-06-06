@@ -6,6 +6,8 @@ import { Card, StatCard, RiskBadge, RiskEvolution } from "@/app/components/ui";
 import { SESSION_STATUS_META, RISK_META } from "@/lib/constants";
 import type { Enums } from "@/lib/database.types";
 import { fmtDateTime, fmtDuration, fmtRelative, fmtDay } from "@/lib/format";
+import { ChatWidget } from "@/app/components/chat-widget";
+import { DeletePatientButton } from "./delete-patient-button";
 import { togglePatientActive, resolveCrisis } from "../../actions";
 
 export default async function PacienteDetalle({
@@ -29,28 +31,38 @@ export default async function PacienteDetalle({
 
   if (!patient || patient.doctor_id !== session.user.id) notFound();
 
-  const [{ data: record }, { data: sessions }, { data: summaries }, { data: crisis }] =
-    await Promise.all([
-      supabase
-        .from("patient_records")
-        .select("motivo_derivacion, notas_clinicas, instrucciones_proxima_sesion")
-        .eq("patient_id", id)
-        .maybeSingle(),
-      supabase
-        .from("therapy_sessions")
-        .select("id, started_at, status, duration_seconds")
-        .eq("patient_id", id)
-        .order("started_at", { ascending: false }),
-      supabase
-        .from("session_summaries")
-        .select("session_id, risk_level, doctor_reviewed")
-        .eq("patient_id", id),
-      supabase
-        .from("crisis_flags")
-        .select("id, level, source, trigger, detected_at, resolved")
-        .eq("patient_id", id)
-        .order("detected_at", { ascending: false }),
-    ]);
+  const [
+    { data: record },
+    { data: sessions },
+    { data: summaries },
+    { data: crisis },
+    { data: messages },
+  ] = await Promise.all([
+    supabase
+      .from("patient_records")
+      .select("motivo_derivacion, notas_clinicas, instrucciones_proxima_sesion")
+      .eq("patient_id", id)
+      .maybeSingle(),
+    supabase
+      .from("therapy_sessions")
+      .select("id, started_at, status, duration_seconds")
+      .eq("patient_id", id)
+      .order("started_at", { ascending: false }),
+    supabase
+      .from("session_summaries")
+      .select("session_id, risk_level, doctor_reviewed")
+      .eq("patient_id", id),
+    supabase
+      .from("crisis_flags")
+      .select("id, level, source, trigger, detected_at, resolved")
+      .eq("patient_id", id)
+      .order("detected_at", { ascending: false }),
+    supabase
+      .from("messages")
+      .select("id, body, sender_id, created_at")
+      .eq("patient_id", id)
+      .order("created_at", { ascending: true }),
+  ]);
 
   const sumBySession = new Map((summaries ?? []).map((s) => [s.session_id, s]));
   const sess = sessions ?? [];
@@ -145,6 +157,10 @@ export default async function PacienteDetalle({
                 {patient.active ? "Dar de baja" : "Reactivar"}
               </button>
             </form>
+            <DeletePatientButton
+              patientId={patient.id}
+              patientName={patient.full_name ?? "este paciente"}
+            />
           </div>
         </div>
 
@@ -370,6 +386,14 @@ export default async function PacienteDetalle({
           </div>
         </div>
       </main>
+
+      <ChatWidget
+        patientId={patient.id}
+        meId={session.user.id}
+        meRole="doctor"
+        peerName={patient.full_name ?? "Paciente"}
+        initial={messages ?? []}
+      />
     </div>
   );
 }

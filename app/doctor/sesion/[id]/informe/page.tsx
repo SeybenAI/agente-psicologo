@@ -64,7 +64,7 @@ export default async function InformeSesion({
               Informe clínico de sesión
             </h1>
             <p className="text-sm text-slate-500">
-              Terapia IA · Plataforma supervisada (Seyben)
+              Terapia IA · Plataforma supervisada por profesionales
             </p>
           </div>
           <div className="text-right text-xs text-slate-500">
@@ -116,7 +116,7 @@ export default async function InformeSesion({
 
         {/* Notas del profesional */}
         {summary?.doctor_notes && (
-          <Block title="Notas del profesional">
+          <Block title="Valoración clínica del profesional">
             <p className="whitespace-pre-line text-sm leading-6">
               {summary.doctor_notes}
             </p>
@@ -127,7 +127,7 @@ export default async function InformeSesion({
           Documento confidencial de carácter clínico. El resumen y la
           clasificación de riesgo han sido generados por un sistema de IA y
           requieren validación profesional. No sustituye el juicio clínico ni un
-          diagnóstico médico. Generado por la plataforma Terapia IA (Seyben).
+          diagnóstico médico. Generado por la plataforma Terapia IA.
         </footer>
       </article>
     </div>

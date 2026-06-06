@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -247,6 +248,45 @@ export async function evaluateSession(
   revalidatePath("/doctor");
 
   return { ok: true, decision: decision === "discharge" ? "discharge" : "authorize" };
+}
+
+/**
+ * Borra COMPLETAMENTE a un paciente y todos sus datos (RGPD, derecho al
+ * olvido): alertas, resúmenes, transcripciones, sesiones, consentimientos,
+ * mensajes, ficha, perfil y cuenta de acceso. Irreversible.
+ */
+export async function deletePatient(formData: FormData) {
+  const { doctorId } = await requireDoctor();
+  const patientId = String(formData.get("patient_id") ?? "");
+  if (!patientId) return;
+
+  const admin = createAdminClient();
+
+  // El paciente debe pertenecer a este doctor.
+  const { data: patient } = await admin
+    .from("profiles")
+    .select("id, role, doctor_id, full_name")
+    .eq("id", patientId)
+    .maybeSingle();
+  if (!patient || patient.role !== "patient" || patient.doctor_id !== doctorId) {
+    return;
+  }
+  const patientName = patient.full_name ?? "El paciente";
+
+  // Borrado en orden (hijos -> padre).
+  await admin.from("crisis_flags").delete().eq("patient_id", patientId);
+  await admin.from("session_summaries").delete().eq("patient_id", patientId);
+  await admin.from("session_transcripts").delete().eq("patient_id", patientId);
+  await admin.from("therapy_sessions").delete().eq("patient_id", patientId);
+  await admin.from("consents").delete().eq("patient_id", patientId);
+  await admin.from("messages").delete().eq("patient_id", patientId);
+  await admin.from("patient_records").delete().eq("patient_id", patientId);
+  await admin.from("profiles").delete().eq("id", patientId);
+  // Cuenta de acceso (auth).
+  await admin.auth.admin.deleteUser(patientId);
+
+  revalidatePath("/doctor");
+  redirect(`/doctor?eliminado=${encodeURIComponent(patientName)}`);
 }
 
 /** Marca una alerta de crisis como resuelta. */

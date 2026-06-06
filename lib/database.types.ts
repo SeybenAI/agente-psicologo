@@ -104,6 +104,36 @@ export type Database = {
           },
         ]
       }
+      messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          patient_id: string
+          read_at: string | null
+          sender_id: string
+          sender_role: Database["public"]["Enums"]["user_role"]
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          patient_id: string
+          read_at?: string | null
+          sender_id: string
+          sender_role: Database["public"]["Enums"]["user_role"]
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          patient_id?: string
+          read_at?: string | null
+          sender_id?: string
+          sender_role?: Database["public"]["Enums"]["user_role"]
+        }
+        Relationships: []
+      }
       patient_records: {
         Row: {
           alta: boolean

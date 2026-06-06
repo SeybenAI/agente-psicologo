@@ -27,10 +27,10 @@ export default function Home() {
           Terapia IA
         </span>
         <Link
-          href="/login"
-          className="rounded-full bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+          href="/login?rol=doctor"
+          className="rounded-full border border-indigo-300 bg-white px-5 py-2 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-50"
         >
-          Acceder
+          🩺 Acceso profesional
         </Link>
       </header>
 
@@ -47,10 +47,10 @@ export default function Home() {
           paso. No sustituye a un profesional sanitario.
         </p>
         <Link
-          href="/login"
-          className="mt-9 rounded-full bg-indigo-600 px-8 py-3.5 text-base font-medium text-white transition-transform hover:scale-[1.02]"
+          href="/login?rol=paciente"
+          className="mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-indigo-600 px-8 py-3.5 text-base font-medium text-white transition-transform hover:scale-[1.02]"
         >
-          Acceder a la plataforma
+          🙋 Acceso paciente
         </Link>
         <p className="mt-4 text-sm text-slate-400">
           ¿Eres paciente? Tu psicólogo/a te facilitará tus credenciales.

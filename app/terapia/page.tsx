@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LogoutButton } from "@/app/components/logout-button";
 import { Card, StatCard } from "@/app/components/ui";
+import { ChatWidget } from "@/app/components/chat-widget";
 import { CRISIS_RESOURCES } from "@/lib/constants";
 import { fmtDateTime, fmtDuration, fmtRelative, fmtDay } from "@/lib/format";
 
@@ -22,7 +23,7 @@ export default async function PacientePanel() {
   const supabase = await createClient();
   const admin = createAdminClient();
 
-  const [{ data: doctor }, { data: sessions }, { data: record }] =
+  const [{ data: doctor }, { data: sessions }, { data: record }, { data: messages }] =
     await Promise.all([
       admin
         .from("profiles")
@@ -38,6 +39,11 @@ export default async function PacientePanel() {
         .select("puede_iniciar_sesion, alta")
         .eq("patient_id", session.user.id)
         .maybeSingle(),
+      supabase
+        .from("messages")
+        .select("id, body, sender_id, created_at")
+        .eq("patient_id", session.user.id)
+        .order("created_at", { ascending: true }),
     ]);
 
   const canStart = Boolean(record?.puede_iniciar_sesion) && !record?.alta;
@@ -225,6 +231,14 @@ export default async function PacientePanel() {
           </div>
         </div>
       </main>
+
+      <ChatWidget
+        patientId={session.user.id}
+        meId={session.user.id}
+        meRole="patient"
+        peerName={doctor?.full_name ?? "Tu psicólogo/a"}
+        initial={messages ?? []}
+      />
     </div>
   );
 }

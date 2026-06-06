@@ -8,6 +8,7 @@ import {
 } from "@elevenlabs/react";
 import { CRISIS_RESOURCES } from "@/lib/constants";
 import { recordConsent } from "./consent-action";
+import { VoiceOrb } from "./voice-orb";
 
 type Phase = "consent" | "ready" | "active" | "ending" | "ended";
 
@@ -22,8 +23,16 @@ export function SessionExperience({ hasConsent }: { hasConsent: boolean }) {
 function SessionRunner({ hasConsent }: { hasConsent: boolean }) {
   const router = useRouter();
   const conversation = useConversation();
-  const { status, isSpeaking, startSession, endSession, isMuted, setMuted } =
-    conversation;
+  const {
+    status,
+    isSpeaking,
+    startSession,
+    endSession,
+    isMuted,
+    setMuted,
+    getOutputVolume,
+    getInputVolume,
+  } = conversation;
 
   const [phase, setPhase] = useState<Phase>(hasConsent ? "ready" : "consent");
   const [error, setError] = useState<string | null>(null);
@@ -226,17 +235,14 @@ function SessionRunner({ hasConsent }: { hasConsent: boolean }) {
 
       {(phase === "active" || phase === "ending") && (
         <>
-          <div
-            className={`mb-6 flex h-28 w-28 items-center justify-center rounded-full text-4xl transition-colors ${
-              isSpeaking
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-300"
-                : "bg-indigo-100 text-indigo-700"
-            } ${status === "connected" ? "animate-pulse" : ""}`}
-          >
-            {status === "connecting" ? "…" : isSpeaking ? "🔊" : "👂"}
-          </div>
+          <VoiceOrb
+            getOutput={getOutputVolume}
+            getInput={getInputVolume}
+            speaking={isSpeaking}
+            connecting={status === "connecting"}
+          />
 
-          <p className="text-sm font-medium text-slate-500">
+          <p className="mt-2 text-base font-medium text-slate-600">
             {status === "connecting"
               ? "Conectando…"
               : isSpeaking
@@ -244,7 +250,7 @@ function SessionRunner({ hasConsent }: { hasConsent: boolean }) {
                 : "Te escucho"}
           </p>
 
-          <div className="mt-4 text-3xl font-semibold tabular-nums text-slate-400">
+          <div className="mt-3 text-2xl font-semibold tabular-nums text-slate-400">
             {mins}:{secs.toString().padStart(2, "0")}
           </div>
           <p className="mt-1 text-xs text-slate-400">tiempo en sesión</p>

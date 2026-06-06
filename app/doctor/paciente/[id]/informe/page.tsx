@@ -70,7 +70,7 @@ export default async function InformePaciente({
               Informe clínico del paciente
             </h1>
             <p className="text-sm text-slate-500">
-              Terapia IA · Plataforma supervisada (Seyben)
+              Terapia IA · Plataforma supervisada por profesionales
             </p>
           </div>
           <div className="text-right text-xs text-slate-500">
@@ -165,7 +165,7 @@ export default async function InformePaciente({
           Documento confidencial de carácter clínico. Los resúmenes y la
           clasificación de riesgo han sido generados por un sistema de IA y
           requieren validación profesional. No sustituye el juicio clínico ni un
-          diagnóstico médico. Generado por la plataforma Terapia IA (Seyben).
+          diagnóstico médico. Generado por la plataforma Terapia IA.
         </footer>
       </article>
     </div>

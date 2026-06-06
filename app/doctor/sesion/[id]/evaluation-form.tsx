@@ -52,9 +52,9 @@ export function EvaluationForm({
 
       <div>
         <label className="mb-1 block text-xs font-medium text-slate-500">
-          Notas clínicas de esta sesión
+          Valoración clínica de la sesión
           <span className="ml-1 font-normal text-slate-400">
-            (internas, el paciente NO las ve)
+            (interna, el paciente NO la ve)
           </span>
         </label>
         <textarea

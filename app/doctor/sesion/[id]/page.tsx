@@ -243,7 +243,7 @@ export default async function SesionDetalle({
                     {summary?.doctor_notes ? (
                       <div className="mb-3">
                         <p className="text-xs font-medium text-slate-500">
-                          Notas clínicas (internas)
+                          Valoración clínica (interna)
                         </p>
                         <p className="mt-0.5 whitespace-pre-line text-sm text-slate-700">
                           {summary.doctor_notes}

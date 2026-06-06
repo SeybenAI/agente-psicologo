@@ -8,10 +8,16 @@ import type { Enums } from "@/lib/database.types";
 import { fmtDateTime, fmtRelative, fmtDuration } from "@/lib/format";
 import { resolveCrisis } from "./actions";
 import { NewPatientForm } from "./new-patient-form";
+import { FlashMessage } from "@/app/components/flash-message";
 
 const DAY = 86400000;
 
-export default async function DoctorPanel() {
+export default async function DoctorPanel({
+  searchParams,
+}: {
+  searchParams: Promise<{ eliminado?: string }>;
+}) {
+  const { eliminado } = await searchParams;
   const session = await getSessionProfile();
   if (!session) redirect("/login");
   if (session.profile.role !== "doctor") redirect("/terapia");
@@ -80,16 +86,6 @@ export default async function DoctorPanel() {
     if (idx !== undefined) days[idx].value++;
   }
 
-  // --- Distribución de riesgo ---
-  const riskCounts: Record<Enums<"risk_level">, number> = {
-    low: 0,
-    medium: 0,
-    high: 0,
-    crisis: 0,
-  };
-  for (const s of summaries) riskCounts[s.risk_level]++;
-  const riskTotal = summaries.length || 1;
-
   // --- Por paciente: nº sesiones, última, último riesgo ---
   const statsByPatient = new Map(
     patients.map((p) => {
@@ -102,6 +98,19 @@ export default async function DoctorPanel() {
     })
   );
 
+  // --- Distribución de riesgo: el riesgo ACTUAL (última sesión) de cada paciente ---
+  const riskCounts: Record<Enums<"risk_level">, number> = {
+    low: 0,
+    medium: 0,
+    high: 0,
+    crisis: 0,
+  };
+  for (const [, st] of statsByPatient) {
+    if (st.lastRisk) riskCounts[st.lastRisk]++;
+  }
+  const riskTotal =
+    Object.values(riskCounts).reduce((a, b) => a + b, 0) || 1;
+
   const reviewQueue = sessions
     .filter((s) => {
       const sum = summaryBySession.get(s.id);
@@ -111,6 +120,9 @@ export default async function DoctorPanel() {
 
   return (
     <div className="flex flex-1 flex-col bg-linear-to-b from-indigo-50/60 via-slate-50 to-slate-50">
+      {eliminado && (
+        <FlashMessage text={`${eliminado} eliminado/a correctamente`} />
+      )}
       <header className="border-b border-indigo-100 bg-white/80 backdrop-blur">
         <div className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8 xl:px-12">
           <div>
@@ -121,7 +133,10 @@ export default async function DoctorPanel() {
               {session.profile.full_name ?? "Doctor/a"}
             </h1>
           </div>
-          <LogoutButton />
+          <div className="flex items-center gap-2">
+            <NewPatientForm />
+            <LogoutButton />
+          </div>
         </div>
       </header>
 
@@ -155,7 +170,7 @@ export default async function DoctorPanel() {
           <Card title="Actividad (últimos 14 días)">
             <BarChart data={days} />
           </Card>
-          <Card title="Distribución de riesgo">
+          <Card title="Riesgo actual de pacientes">
             <div className="space-y-2.5 pt-1">
               {(Object.keys(riskCounts) as Enums<"risk_level">[]).map((lvl) => {
                 const pct = Math.round((riskCounts[lvl] / riskTotal) * 100);
@@ -234,8 +249,6 @@ export default async function DoctorPanel() {
           </Card>
         )}
 
-        {/* Crear paciente */}
-        <NewPatientForm />
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Cola de revisión */}

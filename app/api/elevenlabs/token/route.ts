@@ -77,12 +77,37 @@ export async function POST() {
     );
   }
 
+  const admin = createAdminClient();
+
   // Desde que ARRANCA la sesión, el paciente queda bloqueado para iniciar otra
   // (aunque abandone la llamada a medias) hasta que el doctor le autorice.
-  await createAdminClient()
+  await admin
     .from("patient_records")
     .update({ puede_iniciar_sesion: false })
     .eq("patient_id", user.id);
+
+  // Memoria: resumen de las últimas sesiones para dar continuidad.
+  const { data: pastSummaries } = await admin
+    .from("session_summaries")
+    .select("summary, created_at")
+    .eq("patient_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  const history = (pastSummaries ?? [])
+    .filter((s) => s.summary)
+    .map((s) => {
+      const d = new Intl.DateTimeFormat("es-ES", {
+        day: "2-digit",
+        month: "short",
+      }).format(new Date(s.created_at));
+      return `- ${d}: ${s.summary}`;
+    })
+    .join("\n");
+
+  const sessionHistory =
+    history ||
+    "Es la primera sesión con esta persona; aún no hay sesiones anteriores.";
 
   // 2) Pedimos el token de conversación (WebRTC) a ElevenLabs.
   const res = await fetch(
@@ -109,6 +134,7 @@ export async function POST() {
       doctor_instructions:
         record?.instrucciones_proxima_sesion?.trim() ||
         "Sin instrucciones específicas del psicólogo para esta sesión.",
+      session_history: sessionHistory,
     },
   });
 }
