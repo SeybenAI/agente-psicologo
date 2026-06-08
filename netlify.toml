@@ -1,0 +1,11 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# El plugin oficial de Next.js se instala/activa automáticamente en Netlify
+# y se encarga del SSR y de las rutas API (app/api/**) como funciones.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
